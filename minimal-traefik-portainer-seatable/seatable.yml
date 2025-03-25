@@ -1,0 +1,157 @@
+services:
+  seatable-server:
+    image: ${SEATABLE_IMAGE:-seatable/seatable-developer:latest}
+    restart: unless-stopped
+    container_name: seatable-server
+    volumes:
+      - "/opt/seatable-server:/shared"
+    environment:
+      - DB_HOST=mariadb
+      - DB_ROOT_PASSWD=${SEATABLE_MYSQL_ROOT_PASSWORD:?Variable is not set or empty}
+      - SEATABLE_SERVER_HOSTNAME=${SEATABLE_SERVER_HOSTNAME:?Variable is not set or empty}
+      - SEATABLE_SERVER_PROTOCOL=${SEATABLE_SERVER_PROTOCOL:-https}
+      - SEATABLE_ADMIN_EMAIL=${SEATABLE_ADMIN_EMAIL:?Variable is not set or empty}
+      - SEATABLE_ADMIN_PASSWORD=${SEATABLE_ADMIN_PASSWORD:?Variable is not set or empty}
+      - TIME_ZONE=${TIME_ZONE}
+      - PYTHON_SCHEDULER_URL=${PYTHON_SCHEDULER_URL:-http://python-scheduler}
+      - PYTHON_SCHEDULER_AUTH_TOKEN=${PYTHON_SCHEDULER_AUTH_TOKEN:-}
+      - REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+      - SEATABLE_EMAIL_USE_TLS=${SEATABLE_EMAIL_USE_TLS:-}
+      - SEATABLE_EMAIL_HOST=${SEATABLE_EMAIL_HOST:-}
+      - SEATABLE_EMAIL_HOST_USER=${SEATABLE_EMAIL_HOST_USER:-}
+      - SEATABLE_EMAIL_HOST_PASSWORD=${SEATABLE_EMAIL_HOST_PASSWORD:-}
+      - SEATABLE_EMAIL_PORT=${SEATABLE_EMAIL_PORT:-}
+      - SEATABLE_DEFAULT_FROM_EMAIL=${SEATABLE_DEFAULT_FROM_EMAIL:-}
+      - SEATABLE_SERVER_EMAIL=${SEATABLE_SERVER_EMAIL:-}
+      - SEATABLE_SHOW_TEMPLATES_LINK=${SEATABLE_SHOW_TEMPLATES_LINK:-}
+      - SEATABLE_TEMPLATE_BASE_API_TOKEN=${SEATABLE_TEMPLATE_BASE_API_TOKEN:-}
+      - SEATABLE_TEMPLATE_TABLE_NAME=${SEATABLE_TEMPLATE_TABLE_NAME:-}
+      - SEATABLE_ENABLE_CREATE_BASE_FROM_TEMPLATE=${SEATABLE_ENABLE_CREATE_BASE_FROM_TEMPLATE:-}
+      - SEATABLE_HELP_LINK=${SEATABLE_HELP_LINK:-https://docs.seatable.io}
+      - SEATABLE_LOG_LEVEL=${SEATABLE_LOG_LEVEL:-INFO}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=frontend-net"
+
+      # Define the service
+      - "traefik.http.services.seatable.loadbalancer.server.port=80"
+
+      # Main router
+      - "traefik.http.routers.seatable.rule=Host(`${SEATABLE_SERVER_HOSTNAME}`)"
+      - "traefik.http.routers.seatable.entrypoints=websecure"
+      - "traefik.http.routers.seatable.tls=true"
+      - "traefik.http.routers.seatable.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.seatable.service=seatable"
+      - "traefik.http.routers.seatable.middlewares=seatable-headers@docker"
+
+
+      # Security headers
+      - "traefik.http.middlewares.seatable-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.seatable-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.seatable-headers.headers.stsPreload=true"
+      - "traefik.http.middlewares.seatable-headers.headers.referrerPolicy=same-origin"
+      - "traefik.http.middlewares.seatable-headers.headers.customResponseHeaders.X-XSS-Protection=1; mode=block"
+      - "traefik.http.middlewares.seatable-headers.headers.customResponseHeaders.X-Content-Type-Options=nosniff"
+      - "traefik.http.middlewares.seatable-headers.headers.customResponseHeaders.X-Frame-Options=SAMEORIGIN"
+
+      # Allow iframes middleware
+      - "traefik.http.middlewares.seatable-iframe-allow.headers.customResponseHeaders.X-Frame-Options=ALLOWALL"
+      - "traefik.http.middlewares.seatable-iframe-allow.headers.contentSecurityPolicy="
+
+      # Special path routers
+      - "traefik.http.routers.seatable-external-view.rule=Host(`${SEATABLE_SERVER_HOSTNAME}`) && PathPrefix(`/dtable/view-external-links/`)"
+      - "traefik.http.routers.seatable-external-view.middlewares=seatable-iframe-allow@docker"
+      - "traefik.http.routers.seatable-external-view.service=seatable"
+      - "traefik.http.routers.seatable-external-view.entrypoints=websecure"
+      - "traefik.http.routers.seatable-external-view.tls=true"
+
+      - "traefik.http.routers.seatable-external-links.rule=Host(`${SEATABLE_SERVER_HOSTNAME}`) && PathPrefix(`/dtable/external-links/`)"
+      - "traefik.http.routers.seatable-external-links.middlewares=seatable-iframe-allow@docker"
+      - "traefik.http.routers.seatable-external-links.service=seatable"
+      - "traefik.http.routers.seatable-external-links.entrypoints=websecure"
+      - "traefik.http.routers.seatable-external-links.tls=true"
+
+      - "traefik.http.routers.seatable-dtable-apps.rule=Host(`${SEATABLE_SERVER_HOSTNAME}`) && PathPrefix(`/dtable/external-apps/`)"
+      - "traefik.http.routers.seatable-dtable-apps.middlewares=seatable-iframe-allow@docker"
+      - "traefik.http.routers.seatable-dtable-apps.service=seatable"
+      - "traefik.http.routers.seatable-dtable-apps.entrypoints=websecure"
+      - "traefik.http.routers.seatable-dtable-apps.tls=true"
+
+      - "traefik.http.routers.seatable-forms.rule=Host(`${SEATABLE_SERVER_HOSTNAME}`) && PathPrefix(`/dtable/forms/`)"
+      - "traefik.http.routers.seatable-forms.middlewares=seatable-iframe-allow@docker"
+      - "traefik.http.routers.seatable-forms.service=seatable"
+      - "traefik.http.routers.seatable-forms.entrypoints=websecure"
+      - "traefik.http.routers.seatable-forms.tls=true"
+
+      - "traefik.http.routers.seatable-custom-apps.rule=Host(`${SEATABLE_SERVER_HOSTNAME}`) && PathPrefix(`/apps/custom/`)"
+      - "traefik.http.routers.seatable-custom-apps.middlewares=seatable-iframe-allow@docker"
+      - "traefik.http.routers.seatable-custom-apps.service=seatable"
+      - "traefik.http.routers.seatable-custom-apps.entrypoints=websecure"
+      - "traefik.http.routers.seatable-custom-apps.tls=true"
+
+      - "traefik.http.routers.seatable-external-apps.rule=Host(`${SEATABLE_SERVER_HOSTNAME}`) && PathPrefix(`/external-apps/`)"
+      - "traefik.http.routers.seatable-external-apps.middlewares=seatable-iframe-allow@docker"
+      - "traefik.http.routers.seatable-external-apps.service=seatable"
+      - "traefik.http.routers.seatable-external-apps.entrypoints=websecure"
+      - "traefik.http.routers.seatable-external-apps.tls=true"
+
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - frontend-net
+      - backend-seatable-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8000 || exit 1"]
+      interval: 20s
+      retries: 3
+      start_period: 30s
+      timeout: 10s
+
+  mariadb:
+    image: ${SEATABLE_DB_IMAGE:-mariadb:11.4.3-noble}
+    restart: unless-stopped
+    container_name: mariadb
+    environment:
+      - MYSQL_ROOT_PASSWORD=${SEATABLE_MYSQL_ROOT_PASSWORD:?Variable is not set or empty}
+      - MYSQL_LOG_CONSOLE=true
+      - MARIADB_AUTO_UPGRADE=1
+      - TZ=${TIME_ZONE}
+    volumes:
+      - "/opt/mariadb:/var/lib/mysql"
+      #- "/opt/seatable-compose/mariadb-custom.cnf:/etc/mysql/conf.d/99-mariadb-custom.cnf"
+    networks:
+      - backend-seatable-net
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/usr/local/bin/healthcheck.sh",
+          "--connect",
+          "--mariadbupgrade",
+          "--innodb_initialized",
+        ]
+      interval: 20s
+      retries: 3
+      start_period: 30s
+      timeout: 10s
+
+  redis:
+    image: ${SEATABLE_REDIS_IMAGE:-redis:7.2.7-bookworm}
+    restart: unless-stopped
+    container_name: redis
+    networks:
+      - backend-seatable-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 20s
+      retries: 3
+      timeout: 5s
+
+networks:
+  frontend-net:
+    external: true
+  backend-seatable-net:
+    name: backend-seatable-net
