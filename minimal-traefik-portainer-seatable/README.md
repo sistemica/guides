@@ -63,7 +63,7 @@ Before starting the services, you need to update the following:
    - `SEATABLE_SERVER_HOSTNAME`: Set to your SeaTable domain
 
 2. In the `traefik.yml` file:
-   - Update the Traefik dashboard domain: `traefik.http.routers.dashboard.rule=Host(`traefik.example.com`)`
+   - Update the Traefik dashboard domain: ``traefik.http.routers.dashboard.rule=Host(`traefik.example.com`)``
    - Update the Portainer domain: ``traefik.http.routers.portainer.rule=Host(`portainer.example.com`)``
    - Update the Let's Encrypt email: `--certificatesresolvers.letsencrypt.acme.email=admin@example.com`
 
